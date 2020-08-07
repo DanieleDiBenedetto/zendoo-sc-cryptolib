@@ -13,7 +13,7 @@ public class VRFProof
     Library.load();
   }
 
-  private VRFProof(long proofPointer) {
+  protected VRFProof(long proofPointer) {
     if (proofPointer == 0)
       throw new IllegalArgumentException("Proof pointer must be not null.");
     this.proofPointer = proofPointer;
@@ -21,7 +21,7 @@ public class VRFProof
 
   private static native byte[] nativeSerializeProof(long proofPointer);
 
-  private static native VRFProof nativeDeserializeProof(byte[] proofBytes);
+  private static native long nativeDeserializeProof(byte[] proofBytes);
 
   private static native void nativefreeProof(long proofPointer);
 
@@ -29,7 +29,8 @@ public class VRFProof
     if (proofBytes.length != PROOF_LENGTH)
       throw new IllegalArgumentException(String.format("Incorrect proof length, %d expected, %d found", PROOF_LENGTH, proofBytes.length));
 
-    return nativeDeserializeProof(proofBytes);
+    long vrfProof = nativeDeserializeProof(proofBytes);
+    return vrfProof != 0 ? new VRFProof(vrfProof) : null;
   }
 
   public byte[] serializeProof() {

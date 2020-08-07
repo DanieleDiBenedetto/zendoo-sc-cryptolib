@@ -21,8 +21,8 @@ import static org.junit.Assert.assertFalse;
 
 public class NaiveThresholdSigProofTest {
 
-    static int keyCount = 3;
-    static long threshold = 2;
+    static int keyCount = 7;
+    static long threshold = 5;
     static int backwardTransferCout = 10;
 
     byte[] endEpochBlockHash = new byte[32];
@@ -32,7 +32,7 @@ public class NaiveThresholdSigProofTest {
     List<SchnorrSignature> signatureList = new ArrayList<>();
     List<BackwardTransfer> btList = new ArrayList<>();
 
-    @Test
+    //@Test
     public void testcreateProof() {
 
         endEpochBlockHash = new byte[] {
@@ -132,7 +132,7 @@ public class NaiveThresholdSigProofTest {
         createAndVerifyProof();
     }
 
-    @Test
+    //@Test
     public void testcreateProofWithoutBWT() {
 
         endEpochBlockHash = new byte[] {
@@ -232,7 +232,7 @@ public class NaiveThresholdSigProofTest {
 
         backwardTransferCout = r.nextInt(backwardTransferCout + 1);
         // Create dummy Backward Transfers
-        for(int i = 0; i < backwardTransferCout; i++) {
+        for (int i = 0; i < backwardTransferCout; i++) {
 
             byte[] publicKeyHash = new byte[20];
             r.nextBytes(publicKeyHash);
@@ -243,7 +243,7 @@ public class NaiveThresholdSigProofTest {
 
         List<SchnorrKeyPair> keyPairList = new ArrayList<>();
 
-        for (int i = 0; i<keyCount; i++) {
+        for (int i = 0; i < keyCount; i++) {
             SchnorrKeyPair keyPair = SchnorrKeyPair.generate();
 
             assertNotNull("Key pair generation was unsuccessful.", keyPair);
@@ -253,7 +253,7 @@ public class NaiveThresholdSigProofTest {
             publicKeyList.add(keyPair.getPublicKey());
         }
 
-        for (int i = 0; i<keyCount; i++) {
+        for (int i = 0; i < keyCount; i++) {
             if (i < threshold) {
                 FieldElement msgToSign = NaiveThresholdSigProof.createMsgToSign(btList.toArray(new BackwardTransfer[0]),
                         endEpochBlockHash, prevEndEpochBlockHash);
@@ -264,7 +264,7 @@ public class NaiveThresholdSigProofTest {
         }
 
         //Free memory from the secret keys
-        for (SchnorrKeyPair kp: keyPairList)
+        for (SchnorrKeyPair kp : keyPairList)
             kp.getSecretKey().freeSecretKey();
 
         createAndVerifyProof();
@@ -298,6 +298,8 @@ public class NaiveThresholdSigProofTest {
                 prevEndEpochBlockHash, constant, quality, proof, verificationKeyPath);
 
         assertFalse("Proof must not be verified", isProofVerified);
+
+        constant.freeFieldElement();
     }
 
     @After

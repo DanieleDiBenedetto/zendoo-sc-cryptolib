@@ -7,13 +7,13 @@ public class SchnorrPublicKey
 
   public static final int PUBLIC_KEY_LENGTH = 193;
 
-  private long publicKeyPointer;
+  protected long publicKeyPointer;
 
   static {
     Library.load();
   }
 
-  private SchnorrPublicKey(long publicKeyPointer) {
+  protected SchnorrPublicKey(long publicKeyPointer) {
     if (publicKeyPointer == 0)
       throw new IllegalArgumentException("Public key pointer must be not null.");
     this.publicKeyPointer = publicKeyPointer;
@@ -21,13 +21,14 @@ public class SchnorrPublicKey
 
   private static native int nativeGetPublicKeySize();
 
-  private static native SchnorrPublicKey nativeDeserializePublicKey(byte[] publicKeyBytes);
+  private static native long nativeDeserializePublicKey(byte[] publicKeyBytes);
 
   public static SchnorrPublicKey deserialize(byte[] publicKeyBytes) {
     if (publicKeyBytes.length != PUBLIC_KEY_LENGTH)
       throw new IllegalArgumentException(String.format("Incorrect public key length, %d expected, %d found", PUBLIC_KEY_LENGTH, publicKeyBytes.length));
 
-    return nativeDeserializePublicKey(publicKeyBytes);
+    long pk = nativeDeserializePublicKey(publicKeyBytes);
+    return pk != 0 ? new SchnorrPublicKey(pk) : null;
   }
 
   private native byte[] nativeSerializePublicKey();

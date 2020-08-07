@@ -8,13 +8,13 @@ public class SchnorrSecretKey
 {
     public static final int SECRET_KEY_LENGTH = 96;
 
-    private long secretKeyPointer;
+    protected long secretKeyPointer;
 
     static {
         Library.load();
     }
 
-    private SchnorrSecretKey(long secretKeyPointer) {
+    protected SchnorrSecretKey(long secretKeyPointer) {
         if (secretKeyPointer == 0)
             throw new IllegalArgumentException("Secret key pointer must be not null.");
         this.secretKeyPointer = secretKeyPointer;
@@ -22,13 +22,14 @@ public class SchnorrSecretKey
 
     private static native int nativeGetSecretKeySize();
 
-    private static native SchnorrSecretKey nativeDeserializeSecretKey(byte[] secretKeyBytes);
+    private static native long nativeDeserializeSecretKey(byte[] secretKeyBytes);
 
     public static SchnorrSecretKey deserialize(byte[] secretKeyBytes) {
         if (secretKeyBytes.length != SECRET_KEY_LENGTH)
             throw new IllegalArgumentException(String.format("Incorrect secret key length, %d expected, %d found", SECRET_KEY_LENGTH, secretKeyBytes.length));
 
-        return nativeDeserializeSecretKey(secretKeyBytes);
+        long sk = nativeDeserializeSecretKey(secretKeyBytes);
+        return sk != 0 ? new SchnorrSecretKey(sk) : null;
     }
 
     private native byte[] nativeSerializeSecretKey();
@@ -49,12 +50,12 @@ public class SchnorrSecretKey
         }
     }
 
-    private native SchnorrPublicKey nativeGetPublicKey();
+    private native long nativeGetPublicKey();
 
     public SchnorrPublicKey getPublicKey() {
         if (secretKeyPointer == 0)
             throw new IllegalArgumentException("Secret key was freed.");
 
-        return nativeGetPublicKey();
+        return new SchnorrPublicKey(nativeGetPublicKey());
     }
 }

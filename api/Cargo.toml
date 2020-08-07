@@ -14,9 +14,8 @@ proof-systems = {version = "0.1.0", features = ["groth16"], git = "https://githu
 ouroboros = {path = "../ouroboros"}
 demo-circuit = {path = "../demo-circuit"}
 
-jni = "0.6.1"
+jni = "0.17.0"
 derivative = "1"
-lazy_static = "1"
 radix_trie = "0.1"
 rand = { version = "0.7" }
 rand_xorshift = { version = "0.2" }

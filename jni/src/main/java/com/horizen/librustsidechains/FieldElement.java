@@ -1,28 +1,30 @@
 package com.horizen.librustsidechains;
 
+import java.nio.ByteBuffer;
+
 public class FieldElement {
 
     public static int FIELD_ELEMENT_LENGTH = 96;
 
-    private long fieldElementPointer;
+    public long fieldElementPointer;
 
     static {
         Library.load();
     }
 
-    private FieldElement(long fieldElementPointer) {
+    public FieldElement(long fieldElementPointer) {
         this.fieldElementPointer = fieldElementPointer;
     }
 
-    private static native FieldElement nativeCreateFromLong(long value);
+    private static native long nativeCreateFromLong(long value);
 
     public static FieldElement createFromLong(long value) {
-        return nativeCreateFromLong(value);
+        return new FieldElement(nativeCreateFromLong(value));
     }
 
-    private static native FieldElement nativeCreateRandom();
+    private static native long nativeCreateRandom();
 
-    public static FieldElement createRandom() { return nativeCreateRandom(); }
+    public static FieldElement createRandom() { return new FieldElement(nativeCreateRandom()); }
 
     private static native int nativeGetFieldElementSize();
 
@@ -37,14 +39,15 @@ public class FieldElement {
         return nativeSerializeFieldElement();
     }
 
-    private static native FieldElement nativeDeserializeFieldElement(byte[] fieldElementBytes);
+    private static native long nativeDeserializeFieldElement(byte[] fieldElementBytes);
 
     public static FieldElement deserialize(byte[] fieldElementBytes) {
         if (fieldElementBytes.length != FIELD_ELEMENT_LENGTH)
             throw new IllegalArgumentException(String.format("Incorrect field element length, %d expected, %d found",
                     FIELD_ELEMENT_LENGTH, fieldElementBytes.length));
 
-        return nativeDeserializeFieldElement(fieldElementBytes);
+        long fe = nativeDeserializeFieldElement(fieldElementBytes);
+        return fe != 0 ? new FieldElement(fe) : null;
     }
 
     private static native void nativeFreeFieldElement(long fieldElementPointer);

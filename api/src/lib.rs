@@ -34,10 +34,10 @@ fn serialize_from_raw_pointer<T: ToBytes>(
         .expect(format!("unable to write {} to buffer", type_name::<T>()).as_str())
 }
 
-use jni::JNIEnv;
-use jni::objects::{JClass, JString, JObject, JValue};
-use jni::sys::{jbyteArray, jboolean, jint, jlong, jobject, jobjectArray};
-use jni::sys::{JNI_TRUE, JNI_FALSE};
+use jni::{JNIEnv, objects::{JClass, JString, JObject, JValue}, sys::{
+    jbyteArray, jboolean, jint, jlong, jobject, jobjectArray,
+    JNI_TRUE, JNI_FALSE
+}, DEFAULT_LOCAL_FRAME_CAPACITY};
 
 //Field element related functions
 #[no_mangle]
@@ -52,8 +52,10 @@ pub extern "system" fn Java_com_horizen_librustsidechains_FieldElement_nativeSer
     _field_element: JObject,
 ) -> jbyteArray
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
     let fe_pointer = _env.get_field(_field_element, "fieldElementPointer", "J")
         .expect("Cannot get field element pointer.");
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     let fe = read_raw_pointer({fe_pointer.j().unwrap() as *const FieldElement});
 
@@ -69,23 +71,15 @@ pub extern "system" fn Java_com_horizen_librustsidechains_FieldElement_nativeDes
     _env: JNIEnv,
     _class: JClass,
     _field_element_bytes: jbyteArray,
-) -> jobject
+) -> jlong
 {
+
     let fe_bytes = _env.convert_byte_array(_field_element_bytes)
-        .expect("Should be able to convert to Rust byte array");
+        .expect("Cannot read field element bytes.");
 
-    let fe_ptr: *const FieldElement = deserialize_to_raw_pointer(fe_bytes.as_slice());
+    let fe_pointer: *const FieldElement = deserialize_to_raw_pointer(fe_bytes.as_slice());
 
-    let fe: jlong = jlong::from(fe_ptr as i64);
-
-    let fe_class = _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Cannot find FieldElement class.");
-
-    let fe_object = _env.new_object(fe_class, "(J)V",
-                                            &[JValue::Long(fe)])
-        .expect("Cannot create FieldElement object.");
-
-    *fe_object
+    jlong::from(fe_pointer as i64)
 }
 
 #[no_mangle]
@@ -96,21 +90,13 @@ pub extern "system" fn Java_com_horizen_librustsidechains_FieldElement_nativeCre
     // used, but still needs to have
     // an argument slot
     _class: JClass,
-) -> jobject
+) -> jlong
 {
     //Create random field element
     let fe = get_random_field_element();
 
     //Return field element
-    let field_ptr: jlong = jlong::from(Box::into_raw(Box::new(fe)) as i64);
-
-    let field_class =  _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Should be able to find FieldElement class");
-
-    let result = _env.new_object(field_class, "(J)V", &[
-        JValue::Long(field_ptr)]).expect("Should be able to create new long for FieldElement");
-
-    *result
+    jlong::from(Box::into_raw(Box::new(fe)) as i64)
 }
 
 #[no_mangle]
@@ -122,21 +108,13 @@ pub extern "system" fn Java_com_horizen_librustsidechains_FieldElement_nativeCre
     // an argument slot
     _class: JClass,
     _long: jlong
-) -> jobject
+) -> jlong
 {
     //Create field element from _long
     let fe = read_field_element_from_u64(_long as u64);
 
     //Return field element
-    let field_ptr: jlong = jlong::from(Box::into_raw(Box::new(fe)) as i64);
-
-    let field_class =  _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Should be able to find FieldElement class");
-
-    let result = _env.new_object(field_class, "(J)V", &[
-        JValue::Long(field_ptr)]).expect("Should be able to create new long for FieldElement");
-
-    *result
+    jlong::from(Box::into_raw(Box::new(fe)) as i64)
 }
 
 #[no_mangle]
@@ -161,6 +139,8 @@ pub extern "system" fn Java_com_horizen_librustsidechains_FieldElement_nativeEqu
     _field_element_2: JObject,
 ) -> jboolean
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     //Read field_1
     let field_1 = {
 
@@ -178,6 +158,8 @@ pub extern "system" fn Java_com_horizen_librustsidechains_FieldElement_nativeEqu
 
         read_raw_pointer(f.j().unwrap() as *const FieldElement)
     };
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     match field_1 == field_2 {
         true => JNI_TRUE,
@@ -198,8 +180,12 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrPublicKey_nativeSer
     _schnorr_public_key: JObject,
 ) -> jbyteArray
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     let public_key_pointer = _env.get_field(_schnorr_public_key, "publicKeyPointer", "J")
         .expect("Cannot get public key pointer.");
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     let public_key = read_raw_pointer({public_key_pointer.j().unwrap() as *const SchnorrPk});
 
@@ -215,23 +201,14 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrPublicKey_nativeDes
     _env: JNIEnv,
     _schnorr_public_key_class: JClass,
     _public_key_bytes: jbyteArray,
-) -> jobject
+) -> jlong
 {
     let pk_bytes = _env.convert_byte_array(_public_key_bytes)
         .expect("Cannot read public key bytes.");
 
     let public_key_pointer: *const SchnorrPk = deserialize_to_raw_pointer(pk_bytes.as_slice());
 
-    let public_key: jlong = jlong::from(public_key_pointer as i64);
-
-    let public_key_class = _env.find_class("com/horizen/schnorrnative/SchnorrPublicKey")
-        .expect("Cannot find SchnorrPublicKey class.");
-
-    let public_key_object = _env.new_object(public_key_class, "(J)V",
-                                            &[JValue::Long(public_key)])
-        .expect("Cannot create public key object.");
-
-    *public_key_object
+    jlong::from(public_key_pointer as i64)
 }
 
 #[no_mangle]
@@ -240,8 +217,12 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrPublicKey_nativeFre
     _schnorr_public_key: JObject,
 )
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     let public_key_pointer = _env.get_field(_schnorr_public_key, "publicKeyPointer", "J")
         .expect("Cannot get public key pointer.");
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     let public_key = public_key_pointer.j().unwrap() as *mut SchnorrPk;
 
@@ -262,8 +243,12 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrSecretKey_nativeSer
     _schnorr_secret_key: JObject,
 ) -> jbyteArray
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     let secret_key_pointer = _env.get_field(_schnorr_secret_key, "secretKeyPointer", "J")
         .expect("Cannot get secret key pointer.");
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     let secret_key = read_raw_pointer({secret_key_pointer.j().unwrap() as *const SchnorrSk});
 
@@ -280,22 +265,13 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrSecretKey_nativeDes
     _env: JNIEnv,
     _schnorr_secret_key_class: JClass,
     _secret_key_bytes: jbyteArray,
-) -> jobject
+) -> jlong
 {
     let sk_bytes = _env.convert_byte_array(_secret_key_bytes)
         .expect("Cannot read public key bytes.");
     let secret_key_pointer: *const SchnorrSk = deserialize_to_raw_pointer(sk_bytes.as_slice());
 
-    let secret_key: jlong = jlong::from(secret_key_pointer as i64);
-
-    let secret_key_class = _env.find_class("com/horizen/schnorrnative/SchnorrSecretKey")
-        .expect("Cannot find SchnorrSecretKey class.");
-
-    let secret_key_object = _env.new_object(secret_key_class, "(J)V",
-                                            &[JValue::Long(secret_key)])
-        .expect("Cannot create secret key object.");
-
-    *secret_key_object
+    jlong::from(secret_key_pointer as i64)
 }
 
 #[no_mangle]
@@ -304,8 +280,12 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrSecretKey_nativeFre
     _schnorr_secret_key: JObject,
 )
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     let secret_key_pointer = _env.get_field(_schnorr_secret_key, "secretKeyPointer", "J")
         .expect("Cannot get secret key pointer.");
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     let secret_key = secret_key_pointer.j().unwrap() as *mut SchnorrSk;
 
@@ -326,8 +306,12 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFPublicKey_nativeSerializePu
     _vrf_public_key: JObject,
 ) -> jbyteArray
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     let public_key_pointer = _env.get_field(_vrf_public_key, "publicKeyPointer", "J")
         .expect("Cannot get public key pointer.");
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     let public_key = read_raw_pointer({public_key_pointer.j().unwrap() as *const VRFPk});
 
@@ -344,38 +328,25 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFPublicKey_nativeDeserialize
     _env: JNIEnv,
     _vrf_public_key_class: JClass,
     _public_key_bytes: jbyteArray,
-) -> jobject
+) -> jlong
 {
     let pk_bytes = _env.convert_byte_array(_public_key_bytes)
         .expect("Cannot read public key bytes.");
 
     let public_key_pointer: *mut VRFPk = deserialize_to_raw_pointer(pk_bytes.as_slice());
 
-    let public_key: jlong = jlong::from(public_key_pointer as i64);
-
-    let public_key_class = _env.find_class("com/horizen/vrfnative/VRFPublicKey")
-        .expect("Cannot find SchnorrPublicKey class.");
-
-    let public_key_object = _env.new_object(public_key_class, "(J)V",
-                                            &[JValue::Long(public_key)])
-        .expect("Cannot create public key object.");
-
-    *public_key_object
+    jlong::from(public_key_pointer as i64)
 }
 
 #[no_mangle]
 pub extern "system" fn Java_com_horizen_vrfnative_VRFPublicKey_nativeFreePublicKey(
     _env: JNIEnv,
-    _vrf_public_key: JObject,
+    _class: JClass,
+    _vrf_public_key: *mut VRFPk,
 )
 {
-    let public_key_pointer = _env.get_field(_vrf_public_key, "publicKeyPointer", "J")
-        .expect("Cannot get public key pointer.");
-
-    let public_key = public_key_pointer.j().unwrap() as *mut SchnorrPk;
-
-    if public_key.is_null()  { return }
-    drop(unsafe { Box::from_raw(public_key) });
+    if _vrf_public_key.is_null()  { return }
+    drop(unsafe { Box::from_raw(_vrf_public_key) });
 }
 
 //Secret VRF key utility functions
@@ -391,8 +362,12 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFSecretKey_nativeSerializeSe
     _vrf_secret_key: JObject,
 ) -> jbyteArray
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     let secret_key_pointer = _env.get_field(_vrf_secret_key, "secretKeyPointer", "J")
         .expect("Should be able to read field secretKeyPointer");
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     let secret_key = read_raw_pointer({secret_key_pointer.j().unwrap() as *const VRFSk});
 
@@ -408,38 +383,25 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFSecretKey_nativeDeserialize
     _env: JNIEnv,
     _vrf_secret_key_class: JClass,
     _secret_key_bytes: jbyteArray,
-) -> jobject
+) -> jlong
 {
     let sk_bytes = _env.convert_byte_array(_secret_key_bytes)
         .expect("Cannot read public key bytes.");
 
     let secret_key_pointer: *mut SchnorrSk = deserialize_to_raw_pointer(sk_bytes.as_slice());
 
-    let secret_key: jlong = jlong::from(secret_key_pointer as i64);
-
-    let secret_key_class = _env.find_class("com/horizen/vrfnative/VRFSecretKey")
-        .expect("Cannot find SchnorrSecretKey class.");
-
-    let secret_key_object = _env.new_object(secret_key_class, "(J)V",
-                                            &[JValue::Long(secret_key)])
-        .expect("Cannot create secret key object.");
-
-    *secret_key_object
+    jlong::from(secret_key_pointer as i64)
 }
 
 #[no_mangle]
 pub extern "system" fn Java_com_horizen_vrfnative_VRFSecretKey_nativeFreeSecretKey(
     _env: JNIEnv,
-    _vrf_secret_key: JObject,
+    _class: JClass,
+    _vrf_secret_key: *mut VRFSk,
 )
 {
-    let secret_key_pointer = _env.get_field(_vrf_secret_key, "secretKeyPointer", "J")
-        .expect("Cannot get secret key pointer.");
-
-    let secret_key = secret_key_pointer.j().unwrap() as *mut SchnorrSk;
-
-    if secret_key.is_null()  { return }
-    drop(unsafe { Box::from_raw(secret_key) });
+    if _vrf_secret_key.is_null()  { return }
+    drop(unsafe { Box::from_raw(_vrf_secret_key) });
 }
 
 //Schnorr signature utility functions
@@ -468,23 +430,14 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrSignature_nativeDes
     _env: JNIEnv,
     _class: JClass,
     _sig_bytes: jbyteArray,
-) -> jobject
+) -> jlong
 {
     let sig_bytes = _env.convert_byte_array(_sig_bytes)
         .expect("Should be able to convert to Rust byte array");
 
     let sig_ptr: *const SchnorrSig = deserialize_to_raw_pointer(sig_bytes.as_slice());
 
-    let sig: jlong = jlong::from(sig_ptr as i64);
-
-    let sig_class = _env.find_class("com/horizen/schnorrnative/SchnorrSignature")
-        .expect("Cannot find SchnorrSignature class.");
-
-    let sig_object = _env.new_object(sig_class, "(J)V",
-                                            &[JValue::Long(sig)])
-        .expect("Cannot create signature object.");
-
-    *sig_object
+    jlong::from(sig_ptr as i64)
 }
 
 #[no_mangle]
@@ -514,30 +467,13 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrKeyPair_nativeGener
     let secret_key: jlong = jlong::from(Box::into_raw(Box::new(sk)) as i64);
     let public_key: jlong = jlong::from(Box::into_raw(Box::new(pk)) as i64);
 
-    let secret_key_class = _env.find_class("com/horizen/schnorrnative/SchnorrSecretKey")
-        .expect("Should be able to find SchnorrSecretKey class");
-
-    let secret_key_object = _env.new_object(secret_key_class, "(J)V", &[
-        JValue::Long(secret_key)])
-        .expect("Should be able to create new SchnorrSecretKey object");
-
-    let public_key_class = _env.find_class("com/horizen/schnorrnative/SchnorrPublicKey")
-        .expect("Should be able to find SchnorrPublicKey class");
-
-    let public_key_object = _env.new_object(public_key_class, "(J)V", &[
-        JValue::Long(public_key)])
-        .expect("Should be able to create new SchnorrPublicKey object");
-
-    let class = _env.find_class("com/horizen/schnorrnative/SchnorrKeyPair")
-        .expect("Should be able to find SchnorrKeyPair class");
-
-    let result = _env.new_object(
-        class,
-        "(Lcom/horizen/schnorrnative/SchnorrSecretKey;Lcom/horizen/schnorrnative/SchnorrPublicKey;)V",
-        &[JValue::Object(secret_key_object), JValue::Object(public_key_object)]
-    ).expect("Should be able to create new (SchnorrSecretKey, SchnorrPublicKey) object");
-
-    *result
+    _env.with_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY, || {
+        _env.new_object(
+            _class,
+            "(JJ)V",
+            &[JValue::Long(secret_key), JValue::Long(public_key)]
+        )
+    }).expect("Should be able to create new (SchnorrSecretKey, SchnorrPublicKey) object").into_inner()
 }
 
 #[no_mangle]
@@ -545,31 +481,24 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrKeyPair_nativeSignM
     _env: JNIEnv,
     _schnorr_key_pair: JObject,
     _message: JObject,
-) -> jobject {
+) -> jlong {
+
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
     //Read sk
-    let sk_object = _env.get_field(_schnorr_key_pair,
-                                   "secretKey",
-                                   "Lcom/horizen/schnorrnative/SchnorrSecretKey;"
-    ).expect("Should be able to get field secretKey").l().unwrap();
     let secret_key = {
 
-        let s =_env.get_field(sk_object, "secretKeyPointer", "J")
-            .expect("Should be able to get field secretKeyPointer");
+        let s =_env.get_field(_schnorr_key_pair, "secretKey", "J")
+            .expect("Should be able to get field secretKey");
 
         read_raw_pointer(s.j().unwrap() as *const SchnorrSk)
     };
 
     //Read pk
-    let pk_object = _env.get_field(_schnorr_key_pair,
-                                   "publicKey",
-                                   "Lcom/horizen/schnorrnative/SchnorrPublicKey;"
-    ).expect("Should be able to get field publicKey").l().unwrap();
-
     let public_key = {
 
-        let p = _env.get_field(pk_object, "publicKeyPointer", "J")
-            .expect("Should be able to get field publicKeyPointer");
+        let p = _env.get_field(_schnorr_key_pair, "publicKey", "J")
+            .expect("Should be able to get field publicKey");
 
         read_raw_pointer(p.j().unwrap() as *const SchnorrPk)
     };
@@ -583,22 +512,15 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrKeyPair_nativeSignM
         read_raw_pointer(m.j().unwrap() as *const FieldElement)
     };
 
+    _env.pop_local_frame(JObject::null()).unwrap();
+
     //Sign message and return opaque pointer to sig
     let signature = match schnorr_sign(message, secret_key, public_key) {
         Ok(sig) => Box::into_raw(Box::new(sig)),
-        Err(_) => return std::ptr::null::<jobject>() as jobject //CRYPTO_ERROR
+        Err(_) => return 0, //CRYPTO_ERROR
     };
 
-    let sign_result: jlong = jlong::from(signature as i64);
-
-    let class = _env.find_class("com/horizen/schnorrnative/SchnorrSignature")
-        .expect("Should be able to find class SchnorrSignature");
-
-    let result =  _env.new_object(class, "(J)V", &[
-        JValue::Long(sign_result)])
-        .expect("Should be able to create new long for Schnorr signature");
-
-    *result
+    jlong::from(signature as i64)
 }
 
 #[no_mangle]
@@ -607,8 +529,12 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrPublicKey_nativeVer
     _public_key: JObject,
 ) -> jboolean
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     let pk = _env.get_field(_public_key, "publicKeyPointer", "J")
         .expect("Should be able to get field publicKeyPointer").j().unwrap() as *const SchnorrPk;
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     if schnorr_verify_public_key(read_raw_pointer(pk)) {
         JNI_TRUE
@@ -621,23 +547,19 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrPublicKey_nativeVer
 pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrSecretKey_nativeGetPublicKey(
     _env: JNIEnv,
     _secret_key: JObject
-) -> jobject {
+) -> jlong {
+
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
     let sk = _env.get_field(_secret_key, "secretKeyPointer", "J")
         .expect("Should be able to get field secretKeyPointer").j().unwrap() as *const SchnorrSk;
 
+    _env.pop_local_frame(JObject::null()).unwrap();
+
     let secret_key = read_raw_pointer(sk);
 
     let pk = schnorr_get_public_key(secret_key);
-    let public_key: jlong = jlong::from(Box::into_raw(Box::new(pk)) as i64);
-
-    let public_key_class =  _env.find_class("com/horizen/schnorrnative/SchnorrPublicKey")
-        .expect("Should be able to find SchnorrPublicKey class");
-
-    let result = _env.new_object(public_key_class, "(J)V", &[
-        JValue::Long(public_key)]).expect("Should be able to create new long for SchnorrPk");
-
-    *result
+    jlong::from(Box::into_raw(Box::new(pk)) as i64)
 }
 
 
@@ -648,6 +570,8 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrPublicKey_nativeVer
     _signature: JObject,
     _message: JObject,
 ) -> jboolean {
+
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
     //Read pk
     let public_key = {
@@ -675,6 +599,8 @@ pub extern "system" fn Java_com_horizen_schnorrnative_SchnorrPublicKey_nativeVer
         read_raw_pointer(sig.j().unwrap() as *const SchnorrSig)
     };
 
+    _env.pop_local_frame(JObject::null()).unwrap();
+
     //Verify sig
     match schnorr_verify_signature(message, public_key, signature) {
         Ok(result) => if result {
@@ -691,44 +617,41 @@ pub extern "system" fn Java_com_horizen_poseidonnative_PoseidonHash_nativeComput
     _env: JNIEnv,
     _class: JClass,
     _input: jobjectArray,
-) -> jobject
+) -> jlong
 {
-    //Read _input as array of FieldElement
-    let input_len = _env.get_array_length(_input)
-        .expect("Should be able to read input array size");
-    let mut input = vec![];
+        //Read _input as array of FieldElement
+        let input_len = _env.get_array_length(_input)
+            .expect("Should be able to read input array size");
+        let mut input = vec![];
 
-    for i in 0..input_len {
-        let field_obj = _env.get_object_array_element(_input, i)
-            .expect(format!("Should be able to read elem {} of the input array", i).as_str());
+        for i in 0..input_len {
 
-        let field = {
+            _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
-            let f =_env.get_field(field_obj, "fieldElementPointer", "J")
-                .expect("Should be able to get field fieldElementPointer");
+            let field_obj = _env.get_object_array_element(_input, i)
+                .expect(format!("Should be able to read elem {} of the input array", i).as_str());
 
-            read_raw_pointer(f.j().unwrap() as *const FieldElement)
+            let field = {
+
+                let f =_env.get_field(field_obj, "fieldElementPointer", "J")
+                    .expect("Should be able to get field fieldElementPointer");
+
+                read_raw_pointer(f.j().unwrap() as *const FieldElement)
+            };
+
+            input.push(*field);
+
+            _env.pop_local_frame(JObject::null()).unwrap();
+        }
+
+        //Compute hash
+        let hash = match compute_poseidon_hash(input.as_slice()) {
+            Ok(hash) => hash,
+            Err(_) => return 0, //CRYPTO_ERROR
         };
 
-        input.push(*field);
-    }
-
-    //Compute hash
-    let hash = match compute_poseidon_hash(input.as_slice()) {
-        Ok(hash) => hash,
-        Err(_) => return std::ptr::null::<jobject>() as jobject //CRYPTO_ERROR
-    };
-
-    //Return hash
-    let field_ptr: jlong = jlong::from(Box::into_raw(Box::new(hash)) as i64);
-
-    let field_class =  _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Should be able to find FieldElement class");
-
-    let result = _env.new_object(field_class, "(J)V", &[
-        JValue::Long(field_ptr)]).expect("Should be able to create new long for FieldElement");
-
-    *result
+        //Return hash
+        jlong::from(Box::into_raw(Box::new(hash)) as i64)
 }
 
 //VRF utility functions
@@ -758,23 +681,14 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFProof_nativeDeserializeProo
     _env: JNIEnv,
     _class: JClass,
     _proof_bytes: jbyteArray,
-) -> jobject
+) -> jlong
 {
     let proof_bytes = _env.convert_byte_array(_proof_bytes)
         .expect("Should be able to convert to Rust byte array");
 
     let proof_ptr: *const VRFProof = deserialize_to_raw_pointer(proof_bytes.as_slice());
 
-    let proof: jlong = jlong::from(proof_ptr as i64);
-
-    let proof_class = _env.find_class("com/horizen/vrfnative/VRFProof")
-        .expect("Cannot find VRFProof class.");
-
-    let proof_object = _env.new_object(proof_class, "(J)V",
-                                     &[JValue::Long(proof)])
-        .expect("Cannot create vrf proof object.");
-
-    *proof_object
+    jlong::from(proof_ptr as i64)
 }
 
 #[no_mangle]
@@ -800,36 +714,18 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFKeyPair_nativeGenerate(
     _class: JClass
 ) -> jobject
 {
-
     let (pk, sk) = vrf_generate_key();
 
     let secret_key: jlong = jlong::from(Box::into_raw(Box::new(sk)) as i64);
     let public_key: jlong = jlong::from(Box::into_raw(Box::new(pk)) as i64);
 
-    let secret_key_class = _env.find_class("com/horizen/vrfnative/VRFSecretKey")
-        .expect("Should be able to find VRFSecretKey class");
-
-    let secret_key_object = _env.new_object(secret_key_class, "(J)V", &[
-        JValue::Long(secret_key)])
-        .expect("Should be able to create new VRFSecretKey object");
-
-    let public_key_class = _env.find_class("com/horizen/vrfnative/VRFPublicKey")
-        .expect("Should be able to find VRFPublicKey class");
-
-    let public_key_object = _env.new_object(public_key_class, "(J)V", &[
-        JValue::Long(public_key)])
-        .expect("Should be able to create new VRFPublicKey object");
-
-    let class = _env.find_class("com/horizen/vrfnative/VRFKeyPair")
-        .expect("Should be able to find VRFKeyPair class");
-
-    let result = _env.new_object(
-        class,
-        "(Lcom/horizen/vrfnative/VRFSecretKey;Lcom/horizen/vrfnative/VRFPublicKey;)V",
-        &[JValue::Object(secret_key_object), JValue::Object(public_key_object)]
-    ).expect("Should be able to create new (VRFSecretKey, VRFPublicKey) object");
-
-    *result
+    _env.with_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY, || {
+        _env.new_object(
+            _class,
+            "(JJ)V",
+            &[JValue::Long(secret_key), JValue::Long(public_key)]
+        )
+    }).expect("Should be able to create new (VRFSecretKey, VRFPublicKey) object").into_inner()
 }
 
 #[no_mangle]
@@ -839,103 +735,76 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFKeyPair_nativeProve(
     _message: JObject
 ) -> jobject {
 
-    //Read sk
-    let sk_object = _env.get_field(_vrf_key_pair,
-                                   "secretKey",
-                                   "Lcom/horizen/vrfnative/VRFSecretKey;"
-    ).expect("Should be able to get field vrfKey").l().unwrap();
+    _env.with_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY, || {
+        //Read sk
+        let secret_key = {
 
-    let secret_key = {
+            let s =_env.get_field(_vrf_key_pair, "secretKey", "J")
+                .expect("Should be able to get field secretKey");
 
-        let s =_env.get_field(sk_object, "secretKeyPointer", "J")
-            .expect("Should be able to get field secretKeyPointer");
+            read_raw_pointer(s.j().unwrap() as *const VRFSk)
+        };
 
-        read_raw_pointer(s.j().unwrap() as *const VRFSk)
-    };
+        //Read pk
+        let public_key = {
 
-    //Read pk
-    let pk_object = _env.get_field(_vrf_key_pair,
-                                   "publicKey",
-                                   "Lcom/horizen/vrfnative/VRFPublicKey;"
-    ).expect("Should be able to get field publicKey").l().unwrap();
+            let p = _env.get_field(_vrf_key_pair, "publicKey", "J")
+                .expect("Should be able to get field publicKey");
 
-    let public_key = {
+            read_raw_pointer(p.j().unwrap() as *const VRFPk)
+        };
 
-        let p = _env.get_field(pk_object, "publicKeyPointer", "J")
-            .expect("Should be able to get field publicKeyPointer");
+        //Read message
+        let message = {
 
-        read_raw_pointer(p.j().unwrap() as *const VRFPk)
-    };
+            let m =_env.get_field(_message, "fieldElementPointer", "J")
+                .expect("Should be able to get field fieldElementPointer");
 
-    //Read message
-    let message = {
+            read_raw_pointer(m.j().unwrap() as *const FieldElement)
+        };
 
-        let m =_env.get_field(_message, "fieldElementPointer", "J")
-            .expect("Should be able to get field fieldElementPointer");
+        //Compute vrf proof
+        let (proof, vrf_out) = match vrf_prove(message, secret_key, public_key) {
+            Ok((p, vrf_out)) =>
+                (Box::into_raw(Box::new(p)), Box::into_raw(Box::new(vrf_out))),
+            Err(_) => (null_mut(), null_mut()) //CRYPTO_ERROR
+        };
 
-        read_raw_pointer(m.j().unwrap() as *const FieldElement)
-    };
+        //Create VRFProof instance
+        let proof_ptr: jlong = jlong::from(proof as i64);
+        let field_ptr: jlong = jlong::from(vrf_out as i64);
 
-    //Compute vrf proof
-    let (proof, vrf_out) = match vrf_prove(message, secret_key, public_key) {
-        Ok((p, vrf_out)) =>
-            (Box::into_raw(Box::new(p)), Box::into_raw(Box::new(vrf_out))),
-        Err(_) => return std::ptr::null::<jobject>() as jobject //CRYPTO_ERROR
-    };
+        let class = _env.find_class("com/horizen/vrfnative/VRFProveResult")
+            .expect("Should be able to find VRFProveResult class");
 
-    //Create VRFProof instance
-    let proof_ptr: jlong = jlong::from(proof as i64);
+        let result =_env.new_object(
+                class,
+                "(JJ)V",
+                &[JValue::Long(proof_ptr), JValue::Long(field_ptr)]
+            ).expect("Should be able to create new VRFProveResult:(VRFProof, FieldElement) object");
 
-    let proof_class = _env.find_class("com/horizen/vrfnative/VRFProof")
-        .expect("Should be able to find class VRFProof");
+        Ok(result)
 
-    let proof_object =  _env.new_object(proof_class, "(J)V", &[
-        JValue::Long(proof_ptr)])
-        .expect("Should be able to create new long for VRF proof");
-
-    //Create FieldElement instance
-    let field_ptr: jlong = jlong::from(vrf_out as i64);
-
-    let field_class =  _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Should be able to find FieldElement class");
-
-    let field_object = _env.new_object(field_class, "(J)V", &[
-        JValue::Long(field_ptr)]).expect("Should be able to create new long for FieldElement");
-
-    //Create and return VRFProveResult instance
-    let class = _env.find_class("com/horizen/vrfnative/VRFProveResult")
-        .expect("Should be able to find VRFProveResult class");
-
-    let result = _env.new_object(
-        class,
-        "(Lcom/horizen/vrfnative/VRFProof;Lcom/horizen/librustsidechains/FieldElement;)V",
-        &[JValue::Object(proof_object), JValue::Object(field_object)]
-    ).expect("Should be able to create new VRFProveResult:(VRFProof, FieldElement) object");
-
-    *result
+    }).unwrap().into_inner()
 }
 
 #[no_mangle]
 pub extern "system" fn Java_com_horizen_vrfnative_VRFSecretKey_nativeGetPublicKey(
     _env: JNIEnv,
     _vrf_secret_key: JObject
-) -> jobject {
+) -> jlong {
+
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
     let sk = _env.get_field(_vrf_secret_key, "secretKeyPointer", "J")
         .expect("Should be able to get field secretKeyPointer").j().unwrap() as *const VRFSk;
 
+    _env.pop_local_frame(JObject::null()).unwrap();
+
     let secret_key = read_raw_pointer(sk);
 
     let pk = vrf_get_public_key(secret_key);
-    let public_key: jlong = jlong::from(Box::into_raw(Box::new(pk)) as i64);
-
-    let public_key_class =  _env.find_class("com/horizen/vrfnative/VRFPublicKey")
-        .expect("Should be able to find VRFPublicKey class");
-
-    let result = _env.new_object(public_key_class, "(J)V", &[
-        JValue::Long(public_key)]).expect("Should be able to create new long for VRFPk");
-
-    *result
+    jlong::from(Box::into_raw(Box::new(pk)) as i64)
 }
 
 #[no_mangle]
@@ -944,9 +813,12 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFPublicKey_nativeVerifyKey(
     _vrf_public_key: JObject,
 ) -> jboolean
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
     let pk = _env.get_field(_vrf_public_key, "publicKeyPointer", "J")
         .expect("Should be able to get field publicKeyPointer").j().unwrap() as *const VRFPk;
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     if vrf_verify_public_key(read_raw_pointer(pk)) {
         JNI_TRUE
@@ -961,8 +833,9 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFPublicKey_nativeProofToHash
     _vrf_public_key: JObject,
     _proof: JObject,
     _message: JObject,
-) -> jobject
+) -> jlong
 {
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
     let public_key = {
 
@@ -992,19 +865,13 @@ pub extern "system" fn Java_com_horizen_vrfnative_VRFPublicKey_nativeProofToHash
     //Verify vrf proof and get vrf output
     let vrf_out = match vrf_proof_to_hash(message, public_key, proof) {
         Ok(result) => result,
-        Err(_) => return std::ptr::null::<jobject>() as jobject //CRYPTO_ERROR
+        Err(_) => return 0 //CRYPTO_ERROR
     };
 
+    _env.pop_local_frame(JObject::null()).unwrap();
+
     //Return vrf output
-    let field_ptr: jlong = jlong::from(Box::into_raw(Box::new(vrf_out)) as i64);
-
-    let field_class =  _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Should be able to find FieldElement class");
-
-    let result = _env.new_object(field_class, "(J)V", &[
-        JValue::Long(field_ptr)]).expect("Should be able to create new long for FieldElement");
-
-    *result
+    jlong::from(Box::into_raw(Box::new(vrf_out)) as i64)
 }
 
 //Naive threshold signature proof functions
@@ -1018,7 +885,7 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
     _class: JClass,
     _schnorr_pks_list: jobjectArray,
     _threshold: jlong,
-) -> jobject
+) -> jlong
 {
     //Extract Schnorr pks
     let mut pks = vec![];
@@ -1027,6 +894,7 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
         .expect("Should be able to get schnorr_pks_list size");
 
     for i in 0..pks_list_size {
+        _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
         let pk_object = _env.get_object_array_element(_schnorr_pks_list, i)
             .expect(format!("Should be able to get elem {} of schnorr_pks_list", i).as_str());
@@ -1034,7 +902,10 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
         let pk = _env.get_field(pk_object, "publicKeyPointer", "J")
             .expect("Should be able to get field publicKeyPointer");
 
+
         pks.push(*read_raw_pointer(pk.j().unwrap() as *const SchnorrPk));
+
+        _env.pop_local_frame(JObject::null()).unwrap();
     }
 
     //Extract threshold
@@ -1043,19 +914,11 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
     //Compute constant
     let constant = match compute_pks_threshold_hash(pks.as_slice(), threshold){
         Ok(constant) => constant,
-        Err(_) => return std::ptr::null::<jobject>() as jobject //CRYPTO_ERROR
+        Err(_) => return 0, //CRYPTO_ERROR
     };
 
     //Return constant
-    let field_ptr: jlong = jlong::from(Box::into_raw(Box::new(constant)) as i64);
-
-    let field_class =  _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Should be able to find FieldElement class");
-
-    let result = _env.new_object(field_class, "(J)V", &[
-        JValue::Long(field_ptr)]).expect("Should be able to create new long for FieldElement");
-
-    *result
+    jlong::from(Box::into_raw(Box::new(constant)) as i64)
 }
 
 
@@ -1070,89 +933,87 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
     _bt_list: jobjectArray,
     _end_epoch_block_hash: jbyteArray,
     _prev_end_epoch_block_hash: jbyteArray,
-) -> jobject
+) -> jlong
 {
-    //Extract backward transfers
-    let mut bt_list = vec![];
+        //Extract backward transfers
+        let mut bt_list = vec![];
 
-    let bt_list_size = _env.get_array_length(_bt_list)
-        .expect("Should be able to get bt_list size");
+        let bt_list_size = _env.get_array_length(_bt_list)
+            .expect("Should be able to get bt_list size");
 
-    if bt_list_size > 0
-    {
-        for i in 0..bt_list_size {
-            let o = _env.get_object_array_element(_bt_list, i)
-                .expect(format!("Should be able to get elem {} of bt_list array", i).as_str());
+        if bt_list_size > 0
+        {
+            for i in 0..bt_list_size {
 
-            let pk: [u8; 20] = {
-                let p = _env.call_method(o, "getPublicKeyHash", "()[B", &[])
-                    .expect("Should be able to call getPublicKeyHash method").l().unwrap().cast();
+                _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
 
-                let mut pk_bytes = [0u8; 20];
+                let o = _env.get_object_array_element(_bt_list, i)
+                    .expect(format!("Should be able to get elem {} of bt_list array", i).as_str());
 
-                _env.convert_byte_array(p)
-                    .expect("Should be able to convert to Rust byte array")
-                    .write(&mut pk_bytes[..])
-                    .expect("Should be able to write into byte array of fixed size");
+                let pk: [u8; 20] = {
 
-                pk_bytes
-            };
+                    let p = _env.call_method(o, "getPublicKeyHash", "()[B", &[])
+                        .expect("Should be able to call getPublicKeyHash method").l().unwrap();
 
-            let a = _env.call_method(o, "getAmount", "()J", &[])
-                .expect("Should be able to call getAmount method").j().unwrap() as u64;
+                    let mut pk_bytes = [0u8; 20];
 
-            bt_list.push(BackwardTransfer::new(pk, a));
+                    _env.convert_byte_array(p.cast())
+                        .expect("Should be able to convert to Rust byte array")
+                        .write(&mut pk_bytes[..])
+                        .expect("Should be able to write into byte array of fixed size");
+
+                    pk_bytes
+                };
+
+                let a = _env.call_method(o, "getAmount", "()J", &[])
+                    .expect("Should be able to call getAmount method").j().unwrap() as u64;
+
+                bt_list.push(BackwardTransfer::new(pk, a));
+
+                _env.pop_local_frame(JObject::null()).unwrap();
+            }
         }
-    }
 
-    //Extract block hashes
-    let end_epoch_block_hash = {
-        let t = _env.convert_byte_array(_end_epoch_block_hash)
-            .expect("Should be able to convert to Rust array");
+        //Extract block hashes
+        let end_epoch_block_hash = {
+            let t = _env.convert_byte_array(_end_epoch_block_hash)
+                .expect("Should be able to convert to Rust array");
 
-        let mut end_epoch_block_hash_bytes = [0u8; 32];
+            let mut end_epoch_block_hash_bytes = [0u8; 32];
 
-        t.write(&mut end_epoch_block_hash_bytes[..])
-            .expect("Should be able to write into byte array of fixed size");
+            t.write(&mut end_epoch_block_hash_bytes[..])
+                .expect("Should be able to write into byte array of fixed size");
 
-        read_field_element_from_buffer_with_padding(&end_epoch_block_hash_bytes)
-            .expect("Should be able to read a FieldElement from a 32 byte array")
+            read_field_element_from_buffer_with_padding(&end_epoch_block_hash_bytes)
+                .expect("Should be able to read a FieldElement from a 32 byte array")
 
-    };
+        };
 
-    let prev_end_epoch_block_hash = {
-        let t = _env.convert_byte_array(_prev_end_epoch_block_hash)
-            .expect("Should be able to convert to Rust array");
+        let prev_end_epoch_block_hash = {
+            let t = _env.convert_byte_array(_prev_end_epoch_block_hash)
+                .expect("Should be able to convert to Rust array");
 
-        let mut prev_end_epoch_block_hash_bytes = [0u8; 32];
+            let mut prev_end_epoch_block_hash_bytes = [0u8; 32];
 
-        t.write(&mut prev_end_epoch_block_hash_bytes[..])
-            .expect("Should be able to write into byte array of fixed size");
+            t.write(&mut prev_end_epoch_block_hash_bytes[..])
+                .expect("Should be able to write into byte array of fixed size");
 
-        read_field_element_from_buffer_with_padding(&prev_end_epoch_block_hash_bytes)
-            .expect("Should be able to read a FieldElement from a 32 byte array")
-    };
+            read_field_element_from_buffer_with_padding(&prev_end_epoch_block_hash_bytes)
+                .expect("Should be able to read a FieldElement from a 32 byte array")
+        };
 
-    //Compute message to sign:
-    let msg = match compute_msg_to_sign(
-        &end_epoch_block_hash,
-        &prev_end_epoch_block_hash,
-        bt_list.as_slice()
-    ){
-        Ok((_, msg)) => msg,
-        Err(_) => return std::ptr::null::<jobject>() as jobject //CRYPTO_ERROR
-    };
+        //Compute message to sign:
+        let msg = match compute_msg_to_sign(
+            &end_epoch_block_hash,
+            &prev_end_epoch_block_hash,
+            bt_list.as_slice()
+        ){
+            Ok((_, msg)) => msg,
+            Err(_) => return 0, //CRYPTO_ERROR
+        };
 
-    //Return msg
-    let field_ptr: jlong = jlong::from(Box::into_raw(Box::new(msg)) as i64);
-
-    let field_class =  _env.find_class("com/horizen/librustsidechains/FieldElement")
-        .expect("Should be able to find FieldElement class");
-
-    let result = _env.new_object(field_class, "(J)V", &[
-        JValue::Long(field_ptr)]).expect("Should be able to create new long for FieldElement");
-
-    *result
+        //Return msg
+        jlong::from(Box::into_raw(Box::new(msg)) as i64)
 }
 
 #[no_mangle]
@@ -1172,6 +1033,8 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
     _proving_key_path: JString
 ) -> jobject
 {
+    let vm = _env.get_java_vm().unwrap();
+    let _env = vm.attach_current_thread().unwrap();
     //Extract backward transfers
     let mut bt_list = vec![];
 
@@ -1180,17 +1043,18 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
 
     if bt_list_size > 0 {
         for i in 0..bt_list_size {
+            _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
             let o = _env.get_object_array_element(_bt_list, i)
                 .expect(format!("Should be able to get elem {} of bt_list array", i).as_str());
 
-
             let pk: [u8; 20] = {
                 let p = _env.call_method(o, "getPublicKeyHash", "()[B", &[])
-                    .expect("Should be able to call getPublicKeyHash method").l().unwrap().cast();
+                    .expect("Should be able to call getPublicKeyHash method").l().unwrap();
 
                 let mut pk_bytes = [0u8; 20];
 
-                _env.convert_byte_array(p)
+                _env.convert_byte_array(p.cast())
                     .expect("Should be able to convert to Rust byte array")
                     .write(&mut pk_bytes[..])
                     .expect("Should be able to write into byte array of fixed size");
@@ -1202,6 +1066,8 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
                 .expect("Should be able to call getAmount method").j().unwrap() as u64;
 
             bt_list.push(BackwardTransfer::new(pk, a));
+
+            _env.pop_local_frame(JObject::null()).unwrap();
         }
     }
 
@@ -1218,12 +1084,12 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
     assert_eq!(sigs_list_size, pks_list_size);
 
     for i in 0..sigs_list_size {
+
+        _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
         //Get i-th sig
         let sig_object = _env.get_object_array_element(_schnorr_sigs_list, i)
             .expect(format!("Should be able to get elem {} of schnorr_sigs_list", i).as_str());
-
-        let pk_object = _env.get_object_array_element(_schnorr_pks_list, i)
-            .expect(format!("Should be able to get elem {} of schnorr_pks_list", i).as_str());
 
         let signature = {
             let sig = _env.get_field(sig_object, "signaturePointer", "J")
@@ -1235,12 +1101,17 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
             }
         };
 
+        let pk_object = _env.get_object_array_element(_schnorr_pks_list, i)
+            .expect(format!("Should be able to get elem {} of schnorr_pks_list", i).as_str());
+
         let public_key = {
             let pk = _env.get_field(pk_object, "publicKeyPointer", "J")
                 .expect("Should be able to get field publicKeyPointer");
 
             read_raw_pointer(pk.j().unwrap() as *const SchnorrPk)
         };
+
+        _env.pop_local_frame(JObject::null()).unwrap();
 
         sigs.push(signature);
         pks.push(*public_key);
@@ -1302,17 +1173,19 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
     let proof_serialized = _env.byte_array_from_slice(proof_bytes.as_ref())
         .expect("Should be able to convert Rust slice into jbytearray");
 
-    //Create new CreateProofResult object
-    let proof_result_class = _env.find_class("com/horizen/sigproofnative/CreateProofResult")
-        .expect("Should be able to find CreateProofResult class");
+    _env.with_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY, || {
+        //Create new CreateProofResult object
+        let proof_result_class = _env.find_class("com/horizen/sigproofnative/CreateProofResult")
+            .expect("Should be able to find CreateProofResult class");
 
-    let result = _env.new_object(
-        proof_result_class,
-        "([BJ)V",
-        &[JValue::Object(JObject::from(proof_serialized)), JValue::Long(jlong::from(quality as i64))]
-    ).expect("Should be able to create new CreateProofResult:(long, byte[]) object");
+        let result = _env.new_object(
+            proof_result_class,
+            "([BJ)V",
+            &[JValue::Object(JObject::from(proof_serialized)), JValue::Long(jlong::from(quality as i64))]
+        ).expect("Should be able to create new CreateProofResult:(long, byte[]) object");
 
-    *result
+        Ok(result)
+    }).unwrap().into_inner()
 }
 
 //Test functions
@@ -1341,17 +1214,19 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
 
     if bt_list_size > 0 {
         for i in 0..bt_list_size {
+
+            _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
             let o = _env.get_object_array_element(_bt_list, i)
                 .expect(format!("Should be able to get elem {} of bt_list array", i).as_str());
 
-
             let pk: [u8; 20] = {
                 let p = _env.call_method(o, "getPublicKeyHash", "()[B", &[])
-                    .expect("Should be able to call getPublicKeyHash method").l().unwrap().cast();
+                    .expect("Should be able to call getPublicKeyHash method").l().unwrap();
 
                 let mut pk_bytes = [0u8; 20];
 
-                _env.convert_byte_array(p)
+                _env.convert_byte_array(p.cast())
                     .expect("Should be able to convert to Rust byte array")
                     .write(&mut pk_bytes[..])
                     .expect("Should be able to write into byte array of fixed size");
@@ -1362,7 +1237,10 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
             let a = _env.call_method(o, "getAmount", "()J", &[])
                 .expect("Should be able to call getAmount method").j().unwrap() as u64;
 
+            _env.pop_local_frame(JObject::null()).unwrap();
+
             bt_list.push(BackwardTransfer::new(pk, a));
+
         }
     }
 
@@ -1391,6 +1269,8 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
         prev_end_epoch_block_hash_bytes
     };
 
+    _env.push_local_frame(DEFAULT_LOCAL_FRAME_CAPACITY).unwrap();
+
     //Extract constant
     let constant = {
 
@@ -1399,6 +1279,8 @@ pub extern "system" fn Java_com_horizen_sigproofnative_NaiveThresholdSigProof_na
 
         read_raw_pointer(c.j().unwrap() as *const FieldElement)
     };
+
+    _env.pop_local_frame(JObject::null()).unwrap();
 
     //Extract quality
     let quality = _quality as u64;

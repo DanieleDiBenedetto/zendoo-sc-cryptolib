@@ -13,7 +13,7 @@ public class SchnorrSignature
     Library.load();
   }
 
-  private SchnorrSignature(long signaturePointer) {
+  protected SchnorrSignature(long signaturePointer) {
     if (signaturePointer == 0)
       throw new IllegalArgumentException("Signature pointer must be not null.");
     this.signaturePointer = signaturePointer;
@@ -25,7 +25,7 @@ public class SchnorrSignature
 
   private static native byte[] nativeSerializeSignature(long signaturePointer);
 
-  private static native SchnorrSignature nativeDeserializeSignature(byte[] signatureBytes);
+  private static native long nativeDeserializeSignature(byte[] signatureBytes);
 
   private static native void nativefreeSignature(long signaturePointer);
 
@@ -33,7 +33,8 @@ public class SchnorrSignature
     if (signatureBytes.length != SIGNATURE_LENGTH)
       throw new IllegalArgumentException(String.format("Incorrect signature length, %d expected, %d found", SIGNATURE_LENGTH, signatureBytes.length));
 
-    return nativeDeserializeSignature(signatureBytes);
+    long sig = nativeDeserializeSignature(signatureBytes);
+    return sig != 0 ? new SchnorrSignature(sig) : null;
   }
 
   public byte[] serializeSignature() {

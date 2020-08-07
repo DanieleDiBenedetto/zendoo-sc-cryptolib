@@ -25,12 +25,10 @@ use r1cs_core::{ConstraintSystem, ConstraintSynthesizer, SynthesisError};
 use crate::constants::NaiveThresholdSigParams;
 
 use std::marker::PhantomData;
+use std::cell::RefCell;
 use rand::rngs::OsRng;
-use lazy_static::*;
 
-lazy_static! {
-    pub static ref NULL_CONST: NaiveThresholdSigParams = { NaiveThresholdSigParams::new() };
-}
+thread_local!(pub static NULL_CONST: RefCell<NaiveThresholdSigParams> = RefCell::new(NaiveThresholdSigParams::new()));
 
 //Sig types
 type SchnorrSigGadget = FieldBasedSchnorrSigGadget<MNT4Fr>;
@@ -323,21 +321,23 @@ mod test {
             sigs.push(Some(sig));
         }
 
-        for _ in 0..(max_pks-valid_sigs){
-            //Sample a random boolean and decide if generating a non valid signature or a null one
-            let generate_null: bool = rng.gen();
-            let (pk, sig) = if generate_null {
-                (NULL_CONST.null_pk, NULL_CONST.null_sig)
-            } else {
+        NULL_CONST.with(|nc| {
+            let nc = *nc.borrow();
+            for _ in 0..(max_pks-valid_sigs){
+                //Sample a random boolean and decide if generating a non valid signature or a null one
+                let generate_null: bool = rng.gen();
+                let (pk, sig) = if generate_null {
+                    (nc.null_pk, nc.null_sig)
+                } else {
 
-                let (pk, sk) = SchnorrSig::keygen(&mut rng);
-                let sig = SchnorrSig::sign(&mut rng, &pk, &sk, &[invalid_message]).unwrap();
-                (pk, sig)
-            };
-            pks.push(pk);
-            sigs.push(Some(sig));
-        }
-
+                    let (pk, sk) = SchnorrSig::keygen(&mut rng);
+                    let sig = SchnorrSig::sign(&mut rng, &pk, &sk, &[invalid_message]).unwrap();
+                    (pk, sig)
+                };
+                pks.push(pk);
+                sigs.push(Some(sig));
+            }
+        });
         //Generate b
         let t_field = MNT4Fr::from_repr(BigInteger768::from(threshold as u64));
         let valid_field = MNT4Fr::from_repr(BigInteger768::from(valid_sigs as u64));

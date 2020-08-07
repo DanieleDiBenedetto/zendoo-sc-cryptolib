@@ -14,7 +14,6 @@ r1cs-std = {version = "0.1.0", git = "https://github.com/ZencashOfficial/ginger-
 proof-systems = {version = "0.1.0", features = ["groth16"], git = "https://github.com/ZencashOfficial/ginger-lib.git", branch = "development"}
 
 derivative = "1"
-lazy_static = "1"
 radix_trie = "0.1"
 rand = { version = "0.7" }
 

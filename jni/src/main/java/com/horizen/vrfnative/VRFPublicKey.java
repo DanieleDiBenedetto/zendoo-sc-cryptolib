@@ -8,13 +8,13 @@ public class VRFPublicKey
 
   public static final int PUBLIC_KEY_LENGTH = 193;
 
-  private long publicKeyPointer;
+  protected long publicKeyPointer;
 
   static {
     Library.load();
   }
 
-  private VRFPublicKey(long publicKeyPointer) {
+  protected VRFPublicKey(long publicKeyPointer) {
     if (publicKeyPointer == 0)
       throw new IllegalArgumentException("Public key pointer must be not null.");
     this.publicKeyPointer = publicKeyPointer;
@@ -22,13 +22,14 @@ public class VRFPublicKey
 
   private static native int nativeGetPublicKeySize();
 
-  private static native VRFPublicKey nativeDeserializePublicKey(byte[] publicKeyBytes);
+  private static native long nativeDeserializePublicKey(byte[] publicKeyBytes);
 
   public static VRFPublicKey deserialize(byte[] publicKeyBytes) {
     if (publicKeyBytes.length != PUBLIC_KEY_LENGTH)
       throw new IllegalArgumentException(String.format("Incorrect public key length, %d expected, %d found", PUBLIC_KEY_LENGTH, publicKeyBytes.length));
 
-    return nativeDeserializePublicKey(publicKeyBytes);
+    long pk = nativeDeserializePublicKey(publicKeyBytes);
+    return pk != 0 ? new VRFPublicKey(pk) : null;
   }
 
   private native byte[] nativeSerializePublicKey();
@@ -40,11 +41,11 @@ public class VRFPublicKey
     return nativeSerializePublicKey();
   }
 
-  private native void nativeFreePublicKey();
+  private native void nativeFreePublicKey(long publicKeyPointer);
 
   public void freePublicKey() {
     if (publicKeyPointer != 0) {
-      nativeFreePublicKey();
+      nativeFreePublicKey(this.publicKeyPointer);
       publicKeyPointer = 0;
     }
   }
@@ -58,13 +59,14 @@ public class VRFPublicKey
     return nativeVerifyKey();
   }
 
-  private native FieldElement nativeProofToHash(VRFProof proof, FieldElement message);
+  private native long nativeProofToHash(VRFProof proof, FieldElement message);
 
   public FieldElement proofToHash(VRFProof proof, FieldElement message) {
     if (publicKeyPointer == 0)
       throw new IllegalArgumentException("Public key was freed.");
 
-    return nativeProofToHash(proof, message);
+    long vrfOut = nativeProofToHash(proof, message);
+    return vrfOut != 0 ? new FieldElement(vrfOut) : null;
   }
 }
 

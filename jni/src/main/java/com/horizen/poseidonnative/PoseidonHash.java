@@ -13,7 +13,10 @@ public class PoseidonHash {
         Library.load();
     }
 
-    private static native FieldElement nativeComputeHash(FieldElement[] fieldElement); // jni call to Rust impl
+    private static native long nativeComputeHash(FieldElement[] fieldElement); // jni call to Rust impl
 
-    public static FieldElement computeHash(FieldElement[] fieldElement) {return nativeComputeHash(fieldElement);}
+    public static FieldElement computeHash(FieldElement[] fieldElement) {
+        long hash = nativeComputeHash(fieldElement);
+        return hash != 0 ? new FieldElement(hash) : null;
+    }
 }

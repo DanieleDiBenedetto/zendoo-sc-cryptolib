@@ -4,7 +4,7 @@ public class CreateProofResult {
     private byte[] proof;
     private long quality;
 
-    public CreateProofResult(byte[] proof, long quality) {
+    protected CreateProofResult(byte[] proof, long quality) {
         this.proof = proof;
         this.quality = quality;
     }

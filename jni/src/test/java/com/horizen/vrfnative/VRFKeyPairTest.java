@@ -54,7 +54,7 @@ public class VRFKeyPairTest {
         };
         FieldElement message = FieldElement.deserialize(messageBytes);
 
-        assertNotNull("message deserialization must not fail", sk);
+        assertNotNull("message deserialization must not fail", message);
 
         // Deserialize proof
         byte[] proofBytes = {
@@ -90,7 +90,7 @@ public class VRFKeyPairTest {
         };
         FieldElement expectedVrfOutput = FieldElement.deserialize(vrfOutputBytes);
 
-        assertNotNull("expectedVrfOutput deserialization must not fail", sk);
+        assertNotNull("expectedVrfOutput deserialization must not fail", expectedVrfOutput);
 
         // Verify proof and get vrf output
         FieldElement vrfOutput = keyPair.getPublicKey().proofToHash(proof, message);

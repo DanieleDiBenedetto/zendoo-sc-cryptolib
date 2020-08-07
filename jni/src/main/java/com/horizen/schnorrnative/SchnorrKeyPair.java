@@ -4,40 +4,48 @@ import com.horizen.librustsidechains.FieldElement;
 import com.horizen.librustsidechains.Library;
 
 public class SchnorrKeyPair {
-    private SchnorrSecretKey secretKey;
-    private SchnorrPublicKey publicKey;
+    public long secretKey;
+    public long publicKey;
 
     static {
         Library.load();
     }
 
-    public SchnorrKeyPair(SchnorrSecretKey secretKey, SchnorrPublicKey publicKey) {
+    public SchnorrKeyPair(long secretKey, long publicKey) {
         this.secretKey = secretKey;
         this.publicKey = publicKey;
     }
 
-    public SchnorrKeyPair(SchnorrSecretKey secretKey) {
+    public SchnorrKeyPair(long secretKey) {
         this.secretKey = secretKey;
-        this.publicKey = secretKey.getPublicKey();
+        this.publicKey = new SchnorrSecretKey(this.secretKey).getPublicKey().publicKeyPointer;
+    }
+
+    public SchnorrKeyPair(SchnorrSecretKey sk) {
+        this.secretKey = sk.secretKeyPointer;
+        this.publicKey = sk.getPublicKey().publicKeyPointer;
     }
 
     private static native SchnorrKeyPair nativeGenerate();
 
     public static SchnorrKeyPair generate() {
+
         return nativeGenerate();
     }
 
-    private native SchnorrSignature nativeSignMessage(FieldElement message);
+    private native long nativeSignMessage(FieldElement message);
 
     public SchnorrSignature signMessage(FieldElement message) {
-        return nativeSignMessage(message);
+
+        long sig = nativeSignMessage(message);
+        return sig != 0 ? new SchnorrSignature(sig) : null;
     }
 
     public SchnorrSecretKey getSecretKey() {
-        return this.secretKey;
+        return new SchnorrSecretKey(this.secretKey);
     }
 
     public SchnorrPublicKey getPublicKey() {
-        return  this.publicKey;
+        return new SchnorrPublicKey(this.publicKey);
     }
 }

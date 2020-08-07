@@ -8,18 +8,20 @@ import java.util.List;
 
 public class NaiveThresholdSigProof {
 
-    private static native FieldElement nativeGetConstant(SchnorrPublicKey[] schnorrPublicKeys, long threshold);
+    private static native long nativeGetConstant(SchnorrPublicKey[] schnorrPublicKeys, long threshold);
 
     public static FieldElement getConstant(List<SchnorrPublicKey> schnorrPublicKeys, long threshold) {
-        return nativeGetConstant(schnorrPublicKeys.toArray(new SchnorrPublicKey[0]), threshold);
+        long constant = nativeGetConstant(schnorrPublicKeys.toArray(new SchnorrPublicKey[0]), threshold);
+        return constant != 0 ? new FieldElement(constant) : null;
     }
 
-    private static native FieldElement nativeCreateMsgToSign(BackwardTransfer[] bt,
+    private static native long nativeCreateMsgToSign(BackwardTransfer[] bt,
                                                              byte[] endEpochBlockHash, byte[] prevEndEpochBlockHash);
 
     public static FieldElement createMsgToSign(BackwardTransfer[] bt,
                                                byte[] endEpochBlockHash, byte[] prevEndEpochBlockHash) {
-        return nativeCreateMsgToSign(bt, endEpochBlockHash, prevEndEpochBlockHash);
+        long msg = nativeCreateMsgToSign(bt, endEpochBlockHash, prevEndEpochBlockHash);
+        return msg != 0 ? new FieldElement(msg) : null;
     }
 
     private static native CreateProofResult nativeCreateProof(BackwardTransfer[] bt,
@@ -31,7 +33,7 @@ public class NaiveThresholdSigProof {
                                      byte[] endEpochBlockHash, byte[] prevEndEpochBlockHash,
                                      List<SchnorrSignature> schnorrSignatureList, List<SchnorrPublicKey> schnorrPublicKeyList,
                                      long threshold, String provingKeyPath) {
-        return nativeCreateProof(btList.toArray(new BackwardTransfer[0]), endEpochBlockHash, prevEndEpochBlockHash,
+       return   nativeCreateProof(btList.toArray(new BackwardTransfer[0]), endEpochBlockHash, prevEndEpochBlockHash,
                 schnorrSignatureList.toArray(new SchnorrSignature[0]), schnorrPublicKeyList.toArray(new SchnorrPublicKey[0]),
                 threshold, provingKeyPath);
     }

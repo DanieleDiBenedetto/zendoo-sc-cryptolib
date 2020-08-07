@@ -5,23 +5,23 @@ import com.horizen.librustsidechains.Library;
 
 
 public class VRFProveResult {
-    private VRFProof vrfProof;
-    private FieldElement vrfOutput;
+    protected long vrfProof;
+    protected long vrfOutput;
 
     static {
         Library.load();
     }
 
-    public VRFProveResult(VRFProof vrfProof, FieldElement vrfOutput) {
+    protected VRFProveResult(long vrfProof, long vrfOutput) {
         this.vrfProof = vrfProof;
         this.vrfOutput = vrfOutput;
     }
 
     public VRFProof getVRFProof() {
-        return this.vrfProof;
+        return new VRFProof(this.vrfProof);
     }
 
     public FieldElement getVRFOutput() {
-        return this.vrfOutput;
+        return new FieldElement(this.vrfOutput);
     }
 }

@@ -39,11 +39,7 @@ use rand::{
     Rng, rngs::OsRng
 };
 
-use lazy_static::*;
-
-lazy_static! {
-    pub static ref NULL_CONST: NaiveThresholdSigParams = { NaiveThresholdSigParams::new() };
-}
+thread_local!(static NULL_CONST: RefCell<NaiveThresholdSigParams> = RefCell::new(NaiveThresholdSigParams::new()));
 
 //Sig types
 type SchnorrSig = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
@@ -105,19 +101,22 @@ fn generate_inputs
         sigs.push(sig);
     }
 
-    for _ in 0..(max_pks-valid_sigs){
-        //Sample a random boolean and decide if generating a non valid signature or a null one
-        let generate_null: bool = rng.gen();
-        let (pk, sig) = if generate_null {
-            (NULL_CONST.null_pk, NULL_CONST.null_sig)
-        } else {
-            let (pk, sk) = SchnorrSig::keygen(&mut rng);
-            let sig = SchnorrSig::sign(&mut rng, &pk, &sk, &[invalid_message]).unwrap();
-            (pk, sig)
-        };
-        pks.push(pk);
-        sigs.push(sig);
-    }
+    NULL_CONST.with(|nc| {
+        let nc = *nc.borrow();
+        for _ in 0..(max_pks-valid_sigs){
+            //Sample a random boolean and decide if generating a non valid signature or a null one
+            let generate_null: bool = rng.gen();
+            let (pk, sig) = if generate_null {
+                (nc.null_pk, nc.null_sig)
+            } else {
+                let (pk, sk) = SchnorrSig::keygen(&mut rng);
+                let sig = SchnorrSig::sign(&mut rng, &pk, &sk, &[invalid_message]).unwrap();
+                (pk, sig)
+            };
+            pks.push(pk);
+            sigs.push(sig);
+        }
+    });
 
     //Generate b
     let t_field = MNT4Fr::from_repr(BigInteger768::from(threshold as u64));

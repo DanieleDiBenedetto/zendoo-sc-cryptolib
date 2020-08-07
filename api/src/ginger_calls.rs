@@ -44,9 +44,9 @@ use demo_circuit::{
 use rand::rngs::OsRng;
 
 use std::{
-    fs::File, io::Result as IoResult
+    fs::File, io::Result as IoResult,
+    cell::RefCell,
 };
-use lazy_static::*;
 
 pub type FieldElement = MNT4Fr;
 pub const FIELD_SIZE: usize = 96; //Field size in bytes
@@ -240,15 +240,20 @@ pub fn create_naive_threshold_sig_proof(
     // Iterate over sigs, check and count number of valid signatures,
     // and replace with NULL_CONST.null_sig the None ones
     let mut valid_signatures = 0;
-    for i in 0..max_pks {
-        if sigs[i].is_some(){
-            let is_verified = schnorr_verify_signature(&msg, &pks[i], &sigs[i].unwrap())?;
-            if is_verified { valid_signatures += 1; }
+    NULL_CONST.with::<_, Result<(), Error>>(|nc| {
+        let nc = nc.borrow();
+        for i in 0..max_pks {
+            if sigs[i].is_some(){
+                let is_verified = schnorr_verify_signature(&msg, &pks[i], &sigs[i].unwrap())?;
+                if is_verified { valid_signatures += 1; }
+            }
+            else {
+                sigs[i] = Some(nc.null_sig)
+            }
         }
-        else {
-            sigs[i] = Some(NULL_CONST.null_sig)
-        }
-    }
+        Ok(())
+    })?;
+
 
     //Compute b as v-t and convert it to field element
     let b = read_field_element_from_u64(valid_signatures - threshold);
@@ -300,12 +305,13 @@ pub fn verify_naive_threshold_sig_proof(
 
 //VRF types and functions
 
-lazy_static! {
-    pub static ref VRF_GH_PARAMS: BoweHopwoodPedersenParameters<MNT6G1Projective> = {
-        let params = VRFParams::new();
-        BoweHopwoodPedersenParameters::<MNT6G1Projective>{generators: params.group_hash_generators}
-    };
-}
+thread_local!(
+    static VRF_GH_PARAMS: RefCell<BoweHopwoodPedersenParameters<MNT6G1Projective>> =
+        RefCell::new({
+            let params = VRFParams::new();
+            BoweHopwoodPedersenParameters::<MNT6G1Projective>{generators: params.group_hash_generators}
+        });
+);
 
 type GroupHash = BoweHopwoodPedersenCRH<MNT6G1Projective, VRFWindow>;
 
@@ -332,13 +338,15 @@ pub fn vrf_prove(msg: &FieldElement, sk: &VRFSk, pk: &VRFPk) -> Result<(VRFProof
     let mut rng = OsRng;
 
     //Compute proof
-    let proof = VRFScheme::prove(
-        &mut rng,
-        &VRF_GH_PARAMS,
-        &pk.into_projective(),
-        sk,
-        &[*msg]
-    )?;
+    let proof = VRF_GH_PARAMS.with(|vrf_params| {
+        VRFScheme::prove(
+            &mut rng,
+            &vrf_params.borrow(),
+            &pk.into_projective(),
+            sk,
+            &[*msg]
+        )
+    })?;
 
     //Convert gamma from proof to field elements
     let gamma_coords = proof.gamma.to_field_elements().unwrap();
@@ -353,7 +361,9 @@ pub fn vrf_prove(msg: &FieldElement, sk: &VRFSk, pk: &VRFPk) -> Result<(VRFProof
 }
 
 pub fn vrf_proof_to_hash(msg: &FieldElement, pk: &VRFPk, proof: &VRFProof) -> Result<FieldElement, Error> {
-    VRFScheme::proof_to_hash(&VRF_GH_PARAMS,&pk.into_projective(), &[*msg], proof)
+    VRF_GH_PARAMS.with(|vrf_params| {
+        VRFScheme::proof_to_hash(&vrf_params.borrow(),&pk.into_projective(), &[*msg], proof)
+    })
 }
 
 //************Merkle Tree functions******************
@@ -443,14 +453,14 @@ mod test {
         ).unwrap();
 
         //Generate params and write them to file
-        let params = generate_parameters(3).unwrap();
+        let params = generate_parameters(7).unwrap();
         let proving_key_path = "./sample_proving_key";
         write_to_file(&params, proving_key_path).unwrap();
 
         let verifying_key_path = "./sample_vk";
         write_to_file(&(params.vk), verifying_key_path).unwrap();
 
-        //Generate sample pks and sigs vec
+        /*//Generate sample pks and sigs vec
         let threshold: u64 = 2;
         let mut pks = vec![];
         let mut sks = vec![];
@@ -501,13 +511,13 @@ mod test {
             quality - 1,
             &proof,
             "./sample_vk",
-        ).unwrap());
+        ).unwrap());*/
     }
 
     #[test]
     fn naive_threshold_sig_circuit_test() {
         create_sample_naive_threshold_sig_circuit(10);
-        create_sample_naive_threshold_sig_circuit(0);
+        //create_sample_naive_threshold_sig_circuit(0);
     }
 
     #[test]
